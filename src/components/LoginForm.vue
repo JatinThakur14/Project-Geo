@@ -1,9 +1,32 @@
 <template>
   <div class="card">
     <div class="header">
-      <h1 @click="inLoginForm = true">LOGIN</h1>
-      <h1 @click="inLoginForm = false">SIGNUP</h1>
+      <h1
+        @click="
+          () => {
+            inLoginForm = true;
+            error = false;
+            username = ``;
+            password = ``;
+          }
+        "
+      >
+        LOGIN
+      </h1>
+      <h1
+        @click="
+          () => {
+            inLoginForm = false;
+            error = false;
+            username = ``;
+            password = ``;
+          }
+        "
+      >
+        SIGNUP
+      </h1>
     </div>
+    <h3 v-if="error" style="color: red">{{ errorText }}</h3>
     <form autocomplete="off" v-if="inLoginForm">
       <input
         id="userNameInput"
@@ -27,7 +50,6 @@
       </label>
       <button @click.prevent="doLogin">Login</button>
     </form>
-
     <form autocomplete="off" v-if="!inLoginForm">
       <input
         id="userNameInput"
@@ -45,6 +67,10 @@
         class="inputField"
         placeholder="Password"
         v-model="password"
+        minlength="8"
+        oninvalid="()=>{validated=true;}"
+        maxlength="25"
+        @input="validate"
       />
       <label for="password" class="inputLabel" id="passwordLabel"
         >password
@@ -55,76 +81,87 @@
 </template>
 
 <script>
-import gql from "graphql-tag";
-import { mapState } from "vuex";
-import router from "@/router";
+import { LOGIN_USER, SIGN_UP } from "@/graphql";
 export default {
   data() {
     return {
       username: "",
       password: "",
       inLoginForm: true,
+      error: false,
+      errorText: "",
+      validated: false,
     };
   },
   methods: {
+    callError(errMsg) {
+      this.error = true;
+
+      this.errorText = errMsg;
+      setTimeout(() => {
+        this.error = false;
+      }, 2000);
+    },
+    validate() {
+      const regex = new RegExp(
+        "^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[#?!@$ %^&*-]).{8,}$"
+      );
+      let found = regex.test(this.password);
+      if (!found) {
+        this.errorText =
+          "Password must contain Minimum eight characters, at least one upper case English letter, one lower case English letter, one number and one special character";
+        this.error = true;
+        this.validated = false;
+      } else {
+        this.error = false;
+        this.validated = true;
+      }
+    },
     async doLogin() {
-      localStorage.setItem("token", this.username);
+      if (!this.username) {
+        return this.callError("username is empty");
+      }
+      if (!this.password) {
+        return this.callError("password is empty");
+      }
+      this.$store.commit("updateToken", this.username);
       let data = await this.$apollo.query({
-        query: gql`
-          query checkUsers {
-            users {
-              username
-              password
-            }
-          }
-        `,
+        query: LOGIN_USER,
+        fetchPolicy: "network-only",
       });
       try {
-        if (
-          data.data.users[0].username === this.username &&
-          data.data.users[0].password == this.password
-        ) {
+        if (data.data.users[0].password === this.password) {
           this.$store.dispatch("login");
+          this.username = "";
+          this.password = "";
+        } else {
+          this.callError("username or password are wrong");
+          this.$store.commit("updateToken", "");
         }
       } catch (err) {
-        alert("Email or Password is wrong");
+        this.callError("username or password are wrong");
+        this.$store.commit("updateToken", "");
       }
     },
     doSignup() {
-      if (!this.username && !this.password) {
-        return alert("Fill all the details before signup");
-      }
-      try {
-        this.$apollo.mutate({
-          mutation: gql`
-            mutation insertUsers($username: String!, $password: String!) {
-              insert_users(
-                objects: { username: $username, password: $password }
-              ) {
-                affected_rows
-                returning {
-                  name
-                  username
-                  email
-                }
-              }
-            }
-          `,
-          variables: {
-            password: this.password,
-            username: this.username,
-          },
-        });
-        localStorage.setItem("loginToken", this.username);
-        localStorage.setItem("token", this.username);
-        router.push("/map");
-      } catch (err) {
-        console.error(err);
+      if (this.validated && this.username) {
+        try {
+          this.$apollo.mutate({
+            mutation: SIGN_UP,
+            variables: {
+              username: this.username,
+              password: this.password,
+            },
+          });
+          this.$store.commit("updateToken", this.username);
+          this.$store.dispatch("login");
+        } catch (err) {
+          this.callError("username is already taken");
+        }
+      } else {
+        this.callError("please fill the username and password properly");
       }
     },
-  },
-  computed: {
-    ...mapState(["currUser"]),
   },
 };
 </script>
@@ -150,6 +187,12 @@ export default {
     margin-top: 10px;
     width: 50%;
     height: 100%;
+    input::invalid {
+      border-color: red;
+      &::after {
+        content: "Wrong input";
+      }
+    }
     .inputField {
       height: 2rem;
       margin-block-end: 2rem;

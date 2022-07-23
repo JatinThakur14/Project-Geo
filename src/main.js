@@ -4,5 +4,4 @@ import router from "./router";
 import store from "./store";
 import "leaflet/dist/leaflet.css";
 import { apolloProvider } from "./vue-apollo";
-
 createApp(App).use(store).use(router).use(apolloProvider).mount("#app");

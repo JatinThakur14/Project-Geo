@@ -6,6 +6,11 @@ export default createStore({
     token: "",
     visible: false,
     currUser: "",
+    onCreateMode: false,
+    pathLocation: [],
+    locations: [],
+    isPathMarkerVisible: false,
+    mapZoom: 12,
   },
   getters: {
     storeToken(state) {
@@ -17,14 +22,27 @@ export default createStore({
       state.token = val;
       localStorage.setItem("loginToken", state.token);
     },
+    setZoom(state, zoomLevel) {
+      state.mapZoom = zoomLevel;
+    },
     updateVisible(state, val) {
       state.visible = val;
+    },
+    setCreateMode(state, val) {
+      state.onCreateMode = val;
+    },
+    setLocations(state, val) {
+      state.locations = val;
+    },
+    setPathLoc(state, val) {
+      state.pathLocation = val;
+    },
+    setMarkerVisibility(state, value) {
+      state.isPathMarkerVisible = value;
     },
   },
   actions: {
     login(context) {
-      context.commit("updateToken", localStorage.getItem("token"));
-      console.log(this.state.currUser);
       router.push("/map");
       context.commit("updateVisible", true);
     },

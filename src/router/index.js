@@ -25,7 +25,7 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   const tokenPresent = store.getters.storeToken;
   if (to.meta?.loginRequired && !tokenPresent) {
-    next({ name: "home" });
+    next({ name: "login" });
   } else if (!to.meta?.loginRequired && tokenPresent) {
     next({ name: "map" });
   } else {
